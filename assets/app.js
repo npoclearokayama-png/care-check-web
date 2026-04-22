@@ -22,27 +22,39 @@
 
   const bands = [
     {
-      min: 0, max: 24, title: '今の負担感は比較的低めです',
-      message: 'いまは何とか回せている部分もありそうです。ただし、育児の負担は波があるため、しんどさが強まる前に休み方や頼り先を確認しておくと役立ちます。'
+      min: 0,
+      max: 24,
+      title: '今の負担感は比較的低めです',
+      message:
+        'いまは何とか回せている部分もありそうです。ただし、育児の負担は波があるため、しんどさが強まる前に休み方や頼り先を確認しておくと役立ちます。',
     },
     {
-      min: 25, max: 49, title: '負担感がたまり始めているかもしれません',
-      message: '大きく崩れてはいなくても、気づかないうちに余裕が削られている可能性があります。しんどい時間帯やきっかけを整理すると、対処しやすくなります。'
+      min: 25,
+      max: 49,
+      title: '負担感がたまり始めているかもしれません',
+      message:
+        '大きく崩れてはいなくても、気づかないうちに余裕が削られている可能性があります。しんどい時間帯やきっかけを整理すると、対処しやすくなります。',
     },
     {
-      min: 50, max: 74, title: '負担感が高めの状態かもしれません',
-      message: 'いまは複数の負担が重なっている可能性があります。あなたの努力が足りないのではなく、抱える量が多いのかもしれません。一人で抱えず、支援や相談先を視野に入れてください。'
+      min: 50,
+      max: 74,
+      title: '負担感が高めの状態かもしれません',
+      message:
+        'いまは複数の負担が重なっている可能性があります。あなたの努力が足りないのではなく、抱える量が多いのかもしれません。一人で抱えず、支援や相談先を視野に入れてください。',
     },
     {
-      min: 75, max: 100, title: 'かなり強い負担感がある可能性があります',
-      message: 'いまはかなりしんどい状態に近いかもしれません。頑張り方の問題として抱え込まず、生活を保つために誰かとつながることを優先してください。'
-    }
+      min: 75,
+      max: 100,
+      title: 'かなり強い負担感がある可能性があります',
+      message:
+        'いまはかなりしんどい状態に近いかもしれません。頑張り方の問題として抱え込まず、生活を保つために誰かとつながることを優先してください。',
+    },
   ];
 
   const tips = [
     '週の中で一番しんどい時間帯を1つ書き出す',
     '話せる相手を1人だけ決める',
-    '支援先に「困りごと」ではなく「生活が回らない点」を伝える'
+    '支援先に「困りごと」ではなく「生活が回らない点」を伝える',
   ];
 
   const likert = [
@@ -50,14 +62,24 @@
     { value: 1, label: 'あまりあてはまらない' },
     { value: 2, label: 'どちらともいえない' },
     { value: 3, label: 'ややあてはまる' },
-    { value: 4, label: 'とてもあてはまる' }
+    { value: 4, label: 'とてもあてはまる' },
   ];
+
+  const likertMap = Object.fromEntries(likert.map((item) => [item.value, item.label]));
 
   function loadState() {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { started: false, step: 0, answers: {} };
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+        started: false,
+        step: 0,
+        answers: {},
+      };
     } catch {
-      return { started: false, step: 0, answers: {} };
+      return {
+        started: false,
+        step: 0,
+        answers: {},
+      };
     }
   }
 
@@ -83,7 +105,8 @@
 
     questions.forEach((q) => {
       const value = answers[q.id];
-      const scored = q.reverse ? 4 - value : value;
+      const safeValue = typeof value === 'number' ? value : 0;
+      const scored = q.reverse ? 4 - safeValue : safeValue;
       raw[q.scale] += scored;
     });
 
@@ -97,7 +120,9 @@
     const totalRaw = Object.values(raw).reduce((a, b) => a + b, 0);
     const totalNormalized = normalize(totalRaw, 96);
     const band = bands.find((item) => totalNormalized >= item.min && totalNormalized <= item.max) || bands[0];
-    const topScales = Object.keys(scales).sort((a, b) => scales[b].normalized - scales[a].normalized).slice(0, 2);
+    const topScales = Object.keys(scales)
+      .sort((a, b) => scales[b].normalized - scales[a].normalized)
+      .slice(0, 2);
 
     return {
       totalRaw,
@@ -105,31 +130,70 @@
       summaryTitle: band.title,
       summaryMessage: band.message,
       scales,
-      topScales
+      topScales,
     };
   }
 
-  function buildAiText(result) {
+  function buildQuestionAnswerList(answers) {
+    return questions
+      .map((q, index) => {
+        const rawValue = answers[q.id];
+        const answerLabel =
+          typeof rawValue === 'number' && rawValue in likertMap
+            ? `${rawValue}（${likertMap[rawValue]}）`
+            : '未回答';
+
+        return `${index + 1}. [${scaleLabels[q.scale]}] ${q.text}\n   回答: ${answerLabel}`;
+      })
+      .join('\n');
+  }
+
+  function buildAiText(result, answers) {
+    const questionAnswerList = buildQuestionAnswerList(answers);
+
     return [
-      '以下は「いまの育児負担セルフチェック」の結果です。診断ではなくセルフチェック結果として扱ってください。',
+      '以下は「いまの育児負担セルフチェック」の結果です。',
+      'これは医療的診断ではなく、育児負担の整理のためのセルフチェック結果です。',
       '',
-      '総合点: ' + result.totalNormalized + '/100',
-      '総合所見: ' + result.summaryTitle,
-      '総合メッセージ: ' + result.summaryMessage,
+      '【総合結果】',
+      `総合点: ${result.totalNormalized}/100`,
+      `総合所見: ${result.summaryTitle}`,
+      `総合メッセージ: ${result.summaryMessage}`,
       '',
-      '領域別結果:',
-      '- ' + scaleLabels.child_load + ': ' + result.scales.child_load.normalized + '/100',
-      '- ' + scaleLabels.parent_fatigue + ': ' + result.scales.parent_fatigue.normalized + '/100',
-      '- ' + scaleLabels.isolation_support + ': ' + result.scales.isolation_support.normalized + '/100',
-      '- ' + scaleLabels.future_uncertainty + ': ' + result.scales.future_uncertainty.normalized + '/100',
+      '【領域別結果】',
+      `- ${scaleLabels.child_load}: ${result.scales.child_load.normalized}/100`,
+      `- ${scaleLabels.parent_fatigue}: ${result.scales.parent_fatigue.normalized}/100`,
+      `- ${scaleLabels.isolation_support}: ${result.scales.isolation_support.normalized}/100`,
+      `- ${scaleLabels.future_uncertainty}: ${result.scales.future_uncertainty.normalized}/100`,
       '',
-      '高い領域:',
-      ...result.topScales.map((scale) => '- ' + scaleLabels[scale] + ': ' + scaleDescriptions[scale]),
+      '【高い領域】',
+      ...result.topScales.map(
+        (scale) => `- ${scaleLabels[scale]}: ${scaleDescriptions[scale]}`
+      ),
       '',
-      'この結果を踏まえて、次の3点を日本語で整理してください。',
-      '1. 今の生活で優先して整えた方がよい点',
-      '2. 家族・支援者・相談先に伝えるとよい内容',
-      '3. 今日からできる小さな一歩'
+      '【全設問と回答】',
+      questionAnswerList,
+      '',
+      '【依頼】',
+      'あなたは、保護者支援・発達支援・家族支援の観点を持つ、慎重で実務的な相談補助AIとして振る舞ってください。',
+      '以下の条件で、日本語で分析と提案を行ってください。',
+      '',
+      '1. この結果を診断として扱わないこと。',
+      '2. 点数の高低だけで短絡的に決めつけず、回答内容の偏りや特徴を見て分析すること。',
+      '3. 保護者を責める表現、努力不足と受け取られる表現、断定的表現は避けること。',
+      '4. 回答から読み取れる負担の特徴を、優先度順に3点以内で整理すること。',
+      '5. 家庭内でまず整えるとよいことを、現実的で小さな一歩として提案すること。',
+      '6. 家族・支援者・相談先に伝えるとよい内容を、実際に使える文の形で示すこと。',
+      '7. 必要なら、どの種類の相談先につながるとよいかを、一般名詞で提案すること（例: 医療機関、行政窓口、相談支援、学校、療育機関など）。特定施設名は出さないこと。',
+      '8. 出力は次の見出し順にすること。',
+      '',
+      '【出力形式】',
+      '① 全体の見立て',
+      '② 回答から見える負担の特徴',
+      '③ まず整えたいこと',
+      '④ 家族や支援者に伝えるとよい内容',
+      '⑤ 相談先に持っていける説明文',
+      '⑥ 今日からできる小さな一歩',
     ].join('\n');
   }
 
@@ -162,13 +226,18 @@
           </ul>
           <div class="button-row">
             <button type="button" class="button button-primary" id="startCheckButton">はじめる</button>
-            <button type="button" class="button button-secondary" id="resumeButton" ${Object.keys(state.answers).length ? '' : 'hidden'}>途中から再開</button>
-            <button type="button" class="button button-secondary" id="resetButton" ${Object.keys(state.answers).length ? '' : 'hidden'}>保存を消して最初から</button>
+            <button type="button" class="button button-secondary" id="resumeButton" ${
+              Object.keys(state.answers).length ? '' : 'hidden'
+            }>途中から再開</button>
+            <button type="button" class="button button-secondary" id="resetButton" ${
+              Object.keys(state.answers).length ? '' : 'hidden'
+            }>保存を消して最初から</button>
           </div>
         </section>
       `;
 
-      el('startCheckButton').onclick = () => updateState({ started: true, step: 0, answers: {} });
+      el('startCheckButton').onclick = () =>
+        updateState({ started: true, step: 0, answers: {} });
 
       const resumeButton = el('resumeButton');
       if (resumeButton) {
@@ -208,8 +277,12 @@
         </section>
 
         <div class="button-row">
-          <button type="button" class="button button-secondary" id="backBtn" ${state.step === 0 ? 'disabled' : ''}>戻る</button>
-          <button type="button" class="button button-primary" id="nextBtn" ${currentValue === undefined ? 'disabled' : ''}>
+          <button type="button" class="button button-secondary" id="backBtn" ${
+            state.step === 0 ? 'disabled' : ''
+          }>戻る</button>
+          <button type="button" class="button button-primary" id="nextBtn" ${
+            currentValue === undefined ? 'disabled' : ''
+          }>
             ${state.step === questions.length - 1 ? '結果を見る' : '次へ'}
           </button>
         </div>
@@ -226,10 +299,11 @@
             ...state,
             answers: {
               ...state.answers,
-              [q.id]: option.value
-            }
+              [q.id]: option.value,
+            },
           };
           updateState(nextState);
+
           setTimeout(() => {
             if (state.step === questions.length - 1) {
               updateState({ ...state, step: questions.length });
@@ -257,9 +331,11 @@
 
     function renderResult() {
       const result = score(state.answers);
-      const aiText = buildAiText(result);
+      const aiText = buildAiText(result, state.answers);
 
-      const barsHtml = Object.keys(result.scales).map((scale) => `
+      const barsHtml = Object.keys(result.scales)
+        .map(
+          (scale) => `
         <div class="result-block">
           <div class="result-meta">
             <span>${scaleLabels[scale]}</span>
@@ -269,14 +345,20 @@
             <div class="result-fill" style="width:${result.scales[scale].normalized}%"></div>
           </div>
         </div>
-      `).join('');
+      `
+        )
+        .join('');
 
-      const topHtml = result.topScales.map((scale) => `
+      const topHtml = result.topScales
+        .map(
+          (scale) => `
         <div class="soft-panel">
           <strong>${scaleLabels[scale]}</strong>
           <p>${scaleDescriptions[scale]}</p>
         </div>
-      `).join('');
+      `
+        )
+        .join('');
 
       root.innerHTML = `
         <section class="card">
@@ -312,7 +394,10 @@
 
         <section class="card">
           <h2>相談先リンク</h2>
-          <p class="muted">結果をコピーして、そのまま AI に貼り付けて相談できます。診断目的ではなく、状況整理や相談文づくりの補助として使う想定です。</p>
+          <p class="muted">
+            結果をコピーして、そのまま AI に貼り付けて相談できます。
+            診断目的ではなく、状況整理や相談文づくりの補助として使う想定です。
+          </p>
           <div class="button-row">
             <button type="button" class="button button-primary" id="copyResultButton">結果をAI相談用にコピー</button>
             <a class="button button-secondary" href="https://openai.com/chatgpt/" target="_blank" rel="noreferrer">ChatGPT を開く</a>
@@ -348,18 +433,22 @@
 
     function render() {
       const answered = Object.keys(state.answers).length;
+
       if (!state.started && !answered) {
         renderIntro();
         return;
       }
+
       if (!state.started && answered) {
         renderIntro();
         return;
       }
+
       if (state.step >= questions.length) {
         renderResult();
         return;
       }
+
       renderQuestion();
     }
 
