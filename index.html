@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="育児中の保護者が、今の負担感を簡単に整理するためのセルフチェックWebアプリです。">
+<link rel="stylesheet" href="./assets/styles.css">
+<link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="./manifest.webmanifest">
+
+<title>いまの育児負担セルフチェック</title>
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="site-title" href="./index.html">いまの育児負担セルフチェック</a>
+    <nav class="header-nav" aria-label="主要ページ">
+      <a href="./index.html">チェック</a>
+      <a href="./about.html">このチェックについて</a>
+      <a href="./privacy.html">注意事項</a>
+      <a href="./help.html">相談導線</a>
+    </nav>
+  </div>
+</header>
+<main class="main">
+  <div class="container">
+
+<section class="card hero">
+  <p class="eyebrow">公開用完成版</p>
+  <h1>3分でできる育児負担セルフチェック</h1>
+  <p>今のしんどさを整理するための簡単なチェックです。診断ではなく、日々の負担感を見つめるためのものです。</p>
+  <ul class="simple-list">
+    <li>個人情報の入力は不要です</li>
+    <li>回答はこの端末内で処理されます</li>
+    <li>医療的な診断を行うものではありません</li>
+    <li>GitHub Pages とローカル直開きの両方で動きます</li>
+  </ul>
+</section>
+
+<section class="card notice">
+  <h2>利用前の注意</h2>
+  <p>これは医学的・心理学的な診断を行うものではありません。結果が高く出た場合でも、それだけで何かが確定するものではありません。生活の維持が難しい、安全面の不安がある、気持ちの落ち込みが強い場合は、地域の医療・行政・支援機関等に早めにつながってください。</p>
+</section>
+
+<div id="assessment-root" aria-live="polite"></div>
+
+<script src="./assets/questions.js"></script>
+<script src="./assets/app.js"></script>
+
+  </div>
+</main>
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <p class="small muted">このツールは診断ではなく、今の負担感を整理するためのセルフチェックです。</p>
+    <nav class="footer-nav" aria-label="補助ページ">
+      <a href="./about.html">about</a>
+      <a href="./privacy.html">privacy</a>
+      <a href="./help.html">help</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>
