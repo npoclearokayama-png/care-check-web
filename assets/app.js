@@ -1,60 +1,51 @@
 (function () {
   const questions = window.CARE_CHECK_QUESTIONS || [];
-  const STORAGE_KEY = 'care-check-static-v2';
+  const STORAGE_KEY = 'care-check-static-v3';
+  const SCALE_MAX_RAW = 20;
+  const TOTAL_MAX_RAW = 120;
 
   const scaleLabels = {
-    child_load: '子ども対応の負荷',
-    parent_fatigue: '親自身の消耗',
-    isolation_support: '孤立・支援不足',
-    future_uncertainty: '見通しの持ちにくさ',
+    child_complexity: '子ども対応の複雑さ',
+    life_pressure: '生活の圧迫感',
+    parent_exhaustion: '親自身の消耗',
+    outlook_difficulty: '見通しと手応えの持ちにくさ',
+    support_scarcity: '支援・協力の乏しさ',
+    recovery_scarcity: '回復資源の乏しさ',
   };
 
   const scaleDescriptions = {
-    child_load:
-      '子どもへの対応そのものに強い負荷がかかっている可能性があります。対応の工夫だけでなく、生活全体の組み立てや支援の入り方を見直すことが有効な場合があります。',
-    parent_fatigue:
-      '親自身の心身の消耗が大きくなっている可能性があります。休息だけでなく、負担の量そのものを減らす視点が必要かもしれません。',
-    isolation_support:
-      '孤立感や支援不足が負担を押し上げている可能性があります。困りごとの内容以上に、誰とつながるかを整えることが重要になりそうです。',
-    future_uncertainty:
-      '見通しの持ちにくさや不安の強さが、日々の負担を大きくしている可能性があります。先の全部ではなく、まず次の一歩だけを具体化するのが有効です。',
+    child_complexity:
+      '子どもへの対応そのものに負担がかかっているようです。しつけの問題として抱え込むより、場面の整え方や生活の回し方を見直す方が役立つことがあります。',
+    life_pressure:
+      '毎日の生活を回すこと自体が重荷になっている可能性があります。個々の対応より、負担の量と予定の組み方を調整することが重要かもしれません。',
+    parent_exhaustion:
+      '親自身の心身の余裕がかなり削られている可能性があります。気合いで乗り切るより、休息・分担・相談を優先した方がよい状態かもしれません。',
+    outlook_difficulty:
+      '何をどうすればよいか分からない感じや、やっても報われにくい感覚が、しんどさを大きくしている可能性があります。次の一歩だけを具体化することが有効です。',
+    support_scarcity:
+      '困りごとそのものより、相談相手や協力体制の薄さが負担を強めている可能性があります。まずは「誰につながるか」を整えることが大切です。',
+    recovery_scarcity:
+      'しんどさを回復させる時間や感覚が不足している可能性があります。休む力や立て直すきっかけを確保することが、今はとても重要かもしれません。',
   };
 
   const bands = [
-    {
-      min: 0,
-      max: 24,
-      title: '今の負担感は比較的低めです',
-      message:
-        'いまは何とか回せている部分もありそうです。ただし、育児の負担は波があるため、しんどさが強まる前に休み方や頼り先を確認しておくと役立ちます。',
-    },
-    {
-      min: 25,
-      max: 49,
-      title: '負担感がたまり始めているかもしれません',
-      message:
-        '大きく崩れてはいなくても、気づかないうちに余裕が削られている可能性があります。しんどい時間帯やきっかけを整理すると、対処しやすくなります。',
-    },
-    {
-      min: 50,
-      max: 74,
-      title: '負担感が高めの状態かもしれません',
-      message:
-        'いまは複数の負担が重なっている可能性があります。あなたの努力が足りないのではなく、抱える量が多いのかもしれません。一人で抱えず、支援や相談先を視野に入れてください。',
-    },
-    {
-      min: 75,
-      max: 100,
-      title: 'かなり強い負担感がある可能性があります',
-      message:
-        'いまはかなりしんどい状態に近いかもしれません。頑張り方の問題として抱え込まず、生活を保つために誰かとつながることを優先してください。',
-    },
+    { min: 0, max: 24, title: '現時点の負担感は比較的低め' },
+    { min: 25, max: 49, title: '負担感がたまり始めている可能性' },
+    { min: 50, max: 74, title: '負担感が高め' },
+    { min: 75, max: 100, title: 'かなり強い負担感がある可能性' },
+  ];
+
+  const scaleBands = [
+    { min: 0, max: 24, title: 'いまのところ大きな偏りは目立ちにくい' },
+    { min: 25, max: 49, title: 'やや負担が出ているかもしれない' },
+    { min: 50, max: 74, title: 'この領域がしんどさを押し上げている可能性' },
+    { min: 75, max: 100, title: 'この領域がかなり大きな負担源になっている可能性' },
   ];
 
   const tips = [
-    '週の中で一番しんどい時間帯を1つ書き出す',
-    '話せる相手を1人だけ決める',
-    '支援先に「困りごと」ではなく「生活が回らない点」を伝える',
+    '今日〜明日の中で、最もしんどい時間帯を1つだけ特定する',
+    '「助けてほしい内容」を1文で書き出して、共有先を1人決める',
+    '次の1週間で負担を減らせる予定調整を、1つだけ実行する',
   ];
 
   const likert = [
@@ -67,24 +58,37 @@
 
   const likertMap = Object.fromEntries(likert.map((item) => [item.value, item.label]));
 
+  const defaultMeta = {
+    childAgeBand: '',
+    childCount: '',
+    hardTimeSlots: [],
+    freeText: '',
+  };
+
   function loadState() {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
         started: false,
         step: 0,
         answers: {},
+        meta: { ...defaultMeta },
       };
     } catch {
       return {
         started: false,
         step: 0,
         answers: {},
+        meta: { ...defaultMeta },
       };
     }
   }
 
   function saveState(state) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // 保存失敗時はメモリ上の状態で継続
+    }
   }
 
   function clearState() {
@@ -95,31 +99,40 @@
     return Math.round((raw / max) * 100);
   }
 
+  function getBand(scoreValue, options) {
+    return options.find((item) => scoreValue >= item.min && scoreValue <= item.max) || options[0];
+  }
+
   function score(answers) {
     const raw = {
-      child_load: 0,
-      parent_fatigue: 0,
-      isolation_support: 0,
-      future_uncertainty: 0,
+      child_complexity: 0,
+      life_pressure: 0,
+      parent_exhaustion: 0,
+      outlook_difficulty: 0,
+      support_scarcity: 0,
+      recovery_scarcity: 0,
     };
 
     questions.forEach((q) => {
       const value = answers[q.id];
       const safeValue = typeof value === 'number' ? value : 0;
-      const scored = q.reverse ? 4 - safeValue : safeValue;
-      raw[q.scale] += scored;
+      raw[q.scale] += safeValue;
     });
 
-    const scales = {
-      child_load: { raw: raw.child_load, normalized: normalize(raw.child_load, 24) },
-      parent_fatigue: { raw: raw.parent_fatigue, normalized: normalize(raw.parent_fatigue, 24) },
-      isolation_support: { raw: raw.isolation_support, normalized: normalize(raw.isolation_support, 24) },
-      future_uncertainty: { raw: raw.future_uncertainty, normalized: normalize(raw.future_uncertainty, 24) },
-    };
+    const scales = Object.fromEntries(
+      Object.entries(raw).map(([scaleKey, rawScore]) => [
+        scaleKey,
+        {
+          raw: rawScore,
+          normalized: normalize(rawScore, SCALE_MAX_RAW),
+          band: getBand(normalize(rawScore, SCALE_MAX_RAW), scaleBands).title,
+        },
+      ])
+    );
 
     const totalRaw = Object.values(raw).reduce((a, b) => a + b, 0);
-    const totalNormalized = normalize(totalRaw, 96);
-    const band = bands.find((item) => totalNormalized >= item.min && totalNormalized <= item.max) || bands[0];
+    const totalNormalized = normalize(totalRaw, TOTAL_MAX_RAW);
+    const band = getBand(totalNormalized, bands);
     const topScales = Object.keys(scales)
       .sort((a, b) => scales[b].normalized - scales[a].normalized)
       .slice(0, 2);
@@ -128,7 +141,8 @@
       totalRaw,
       totalNormalized,
       summaryTitle: band.title,
-      summaryMessage: band.message,
+      summaryMessage:
+        'いまの子育ての中で、複数の負担が重なっている可能性があります。これは努力不足という意味ではなく、抱える量や状況の複雑さが大きいのかもしれません。しんどさの中身を分けて見ると、次の一歩が見えやすくなります。',
       scales,
       topScales,
     };
@@ -148,48 +162,71 @@
       .join('\n');
   }
 
-  function buildAiText(result, answers) {
-    const questionAnswerList = buildQuestionAnswerList(answers);
+  function buildMetaSummary(meta) {
+    const ageLabelMap = {
+      age_0_2: '0〜2歳',
+      age_3_5: '3〜5歳',
+      age_elementary: '小学生',
+      age_junior_plus: '中学生以上',
+    };
+
+    const countLabelMap = {
+      one: '1人',
+      two: '2人',
+      three_plus: '3人以上',
+    };
+
+    const slotLabelMap = {
+      morning: '朝',
+      evening: '夕方',
+      night: '夜',
+      bedtime: '寝かしつけ',
+      outing: '外出時',
+      homework: '宿題や準備',
+      other: 'その他',
+    };
 
     return [
-      '以下は「いまの育児負担セルフチェック」の結果です。',
-      'これは医療的診断ではなく、育児負担の整理のためのセルフチェック結果です。',
+      `- 子どもの年齢帯: ${ageLabelMap[meta.childAgeBand] || '未選択'}`,
+      `- 子どもの人数: ${countLabelMap[meta.childCount] || '未選択'}`,
+      `- 特にしんどかった時間帯: ${meta.hardTimeSlots.length ? meta.hardTimeSlots.map((slot) => slotLabelMap[slot] || slot).join(' / ') : '未選択'}`,
+      `- 自由記述: ${meta.freeText ? meta.freeText : '（記入なし）'}`,
+    ].join('\n');
+  }
+
+  function buildAiText(result, answers, meta) {
+    const questionAnswerList = buildQuestionAnswerList(answers);
+    const metaSummary = buildMetaSummary(meta);
+
+    return [
+      '以下は「いまの子育て負担セルフチェック」（ここ1か月）の結果です。',
+      'これは医療的診断ではなく、子育て負担の整理のためのセルフチェックです。',
       '',
       '【総合結果】',
-      `総合点: ${result.totalNormalized}/100`,
-      `総合所見: ${result.summaryTitle}`,
+      `総合点: ${result.totalNormalized}/100（生点 ${result.totalRaw}/120）`,
+      `総合判定: ${result.summaryTitle}`,
       `総合メッセージ: ${result.summaryMessage}`,
       '',
-      '【領域別結果】',
-      `- ${scaleLabels.child_load}: ${result.scales.child_load.normalized}/100`,
-      `- ${scaleLabels.parent_fatigue}: ${result.scales.parent_fatigue.normalized}/100`,
-      `- ${scaleLabels.isolation_support}: ${result.scales.isolation_support.normalized}/100`,
-      `- ${scaleLabels.future_uncertainty}: ${result.scales.future_uncertainty.normalized}/100`,
-      '',
-      '【高い領域】',
-      ...result.topScales.map(
-        (scale) => `- ${scaleLabels[scale]}: ${scaleDescriptions[scale]}`
+      '【領域別結果（6軸）】',
+      ...Object.keys(result.scales).map(
+        (scale) => `- ${scaleLabels[scale]}: ${result.scales[scale].normalized}/100（${result.scales[scale].band}）`
       ),
+      '',
+      '【上位2軸】',
+      ...result.topScales.map((scale) => `- ${scaleLabels[scale]}: ${scaleDescriptions[scale]}`),
+      '',
+      '【補助項目】',
+      metaSummary,
       '',
       '【全設問と回答】',
       questionAnswerList,
       '',
       '【依頼】',
-      'あなたは、保護者支援・発達支援・家族支援の観点を持つ、慎重で実務的な相談補助AIとして振る舞ってください。',
-      '以下の条件で、日本語で分析と提案を行ってください。',
-      '',
-      '1. この結果を診断として扱わないこと。',
-      '2. 点数の高低だけで短絡的に決めつけず、回答内容の偏りや特徴を見て分析すること。',
-      '3. 保護者を責める表現、努力不足と受け取られる表現、断定的表現は避けること。',
-      '4. 回答から読み取れる負担の特徴を、優先度順に3点以内で整理すること。',
-      '5. 家庭内でまず整えるとよいことを、現実的で小さな一歩として提案すること。',
-      '6. 家族・支援者・相談先に伝えるとよい内容を、実際に使える文の形で示すこと。',
-      '7. 必要なら、どの種類の相談先につながるとよいかを、一般名詞で提案すること（例: 医療機関、行政窓口、相談支援、学校、療育機関など）。特定施設名は出さないこと。',
-      '8. 出力は次の見出し順にすること。',
-      '',
-      '【出力形式】',
+      'あなたは、保護者支援・家族支援の観点を持つ慎重で実務的な相談補助AIとして振る舞ってください。',
+      'この結果を診断として扱わず、保護者を責めない表現で、現実的な次の一歩を提案してください。',
+      '出力は次の見出し順にしてください。',
       '① 全体の見立て',
-      '② 回答から見える負担の特徴',
+      '② 上位2軸から見える負担の特徴',
       '③ まず整えたいこと',
       '④ 家族や支援者に伝えるとよい内容',
       '⑤ 相談先に持っていける説明文',
@@ -206,6 +243,9 @@
     if (!root) return;
 
     let state = loadState();
+    if (!state.meta) {
+      state.meta = { ...defaultMeta };
+    }
 
     function updateState(next) {
       state = next;
@@ -217,27 +257,118 @@
       root.innerHTML = `
         <section class="card">
           <p class="eyebrow">匿名・端末内完結</p>
-          <h1>3分でできる育児負担セルフチェック</h1>
-          <p>今のしんどさを整理するための簡単なチェックです。診断ではなく、日々の負担感を見つめるためのものです。</p>
+          <h1>4〜6分でできる子育て負担セルフチェック</h1>
+          <p>対象は、0歳〜小学生程度の子どもを育てる保護者の方全般です。診断の有無にかかわらず利用できます。</p>
           <ul class="simple-list">
-            <li>個人情報の入力は不要です</li>
-            <li>回答はこの端末内で処理されます</li>
-            <li>医療的な診断を行うものではありません</li>
+            <li>回答期間は「ここ1か月」の状態です</li>
+            <li>30問（6軸×各5問）・5件法で回答します</li>
+            <li>診断ではなく、今の負担感を整理するためのツールです</li>
           </ul>
-          <div class="button-row">
-            <button type="button" class="button button-primary" id="startCheckButton">はじめる</button>
-            <button type="button" class="button button-secondary" id="resumeButton" ${
-              Object.keys(state.answers).length ? '' : 'hidden'
-            }>途中から再開</button>
-            <button type="button" class="button button-secondary" id="resetButton" ${
-              Object.keys(state.answers).length ? '' : 'hidden'
-            }>保存を消して最初から</button>
-          </div>
         </section>
+
+        <section class="card">
+          <h2>任意の補助項目（採点には使いません）</h2>
+          <p class="muted">結果の補助表示や相談文づくりに使います。未入力でもそのまま開始できます。</p>
+
+          <label for="childAgeBand">子どもの年齢帯</label>
+          <select id="childAgeBand" class="select-field">
+            <option value="">選択しない</option>
+            <option value="age_0_2" ${state.meta.childAgeBand === 'age_0_2' ? 'selected' : ''}>0〜2歳</option>
+            <option value="age_3_5" ${state.meta.childAgeBand === 'age_3_5' ? 'selected' : ''}>3〜5歳</option>
+            <option value="age_elementary" ${state.meta.childAgeBand === 'age_elementary' ? 'selected' : ''}>小学生</option>
+            <option value="age_junior_plus" ${state.meta.childAgeBand === 'age_junior_plus' ? 'selected' : ''}>中学生以上</option>
+          </select>
+
+          <label for="childCount">子どもの人数</label>
+          <select id="childCount" class="select-field">
+            <option value="">選択しない</option>
+            <option value="one" ${state.meta.childCount === 'one' ? 'selected' : ''}>1人</option>
+            <option value="two" ${state.meta.childCount === 'two' ? 'selected' : ''}>2人</option>
+            <option value="three_plus" ${state.meta.childCount === 'three_plus' ? 'selected' : ''}>3人以上</option>
+          </select>
+
+          <p>ここ1か月で特にしんどかった時間帯（複数選択可）</p>
+          <div class="chips" id="timeSlotChips"></div>
+
+          <label for="freeText">いま一番しんどいと感じていること（任意）</label>
+          <textarea id="freeText" class="copy-area" rows="5" placeholder="自由に入力してください">${state.meta.freeText || ''}</textarea>
+        </section>
+
+        <div class="button-row">
+          <button type="button" class="button button-primary" id="startCheckButton">はじめる</button>
+          <button type="button" class="button button-secondary" id="resumeButton" ${
+            Object.keys(state.answers).length ? '' : 'hidden'
+          }>途中から再開</button>
+          <button type="button" class="button button-secondary" id="resetButton" ${
+            Object.keys(state.answers).length ? '' : 'hidden'
+          }>保存を消して最初から</button>
+        </div>
       `;
 
+      const timeSlotOptions = [
+        ['morning', '朝'],
+        ['evening', '夕方'],
+        ['night', '夜'],
+        ['bedtime', '寝かしつけ'],
+        ['outing', '外出時'],
+        ['homework', '宿題や準備'],
+        ['other', 'その他'],
+      ];
+
+      const chips = el('timeSlotChips');
+      timeSlotOptions.forEach(([value, label]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        const selected = state.meta.hardTimeSlots.includes(value);
+        button.className = `chip ${selected ? 'selected' : ''}`;
+        button.textContent = label;
+        button.onclick = () => {
+          const nextSlots = selected
+            ? state.meta.hardTimeSlots.filter((item) => item !== value)
+            : [...state.meta.hardTimeSlots, value];
+          updateState({
+            ...state,
+            meta: {
+              ...state.meta,
+              hardTimeSlots: nextSlots,
+            },
+          });
+        };
+        chips.appendChild(button);
+      });
+
+      el('childAgeBand').onchange = (event) => {
+        updateState({
+          ...state,
+          meta: {
+            ...state.meta,
+            childAgeBand: event.target.value,
+          },
+        });
+      };
+
+      el('childCount').onchange = (event) => {
+        updateState({
+          ...state,
+          meta: {
+            ...state.meta,
+            childCount: event.target.value,
+          },
+        });
+      };
+
+      el('freeText').onchange = (event) => {
+        updateState({
+          ...state,
+          meta: {
+            ...state.meta,
+            freeText: event.target.value,
+          },
+        });
+      };
+
       el('startCheckButton').onclick = () =>
-        updateState({ started: true, step: 0, answers: {} });
+        updateState({ ...state, started: true, step: 0, answers: {} });
 
       const resumeButton = el('resumeButton');
       if (resumeButton) {
@@ -248,7 +379,7 @@
       if (resetButton) {
         resetButton.onclick = () => {
           clearState();
-          state = { started: false, step: 0, answers: {} };
+          state = { started: false, step: 0, answers: {}, meta: { ...defaultMeta } };
           render();
         };
       }
@@ -271,7 +402,7 @@
         </section>
 
         <section class="card">
-          <p class="eyebrow">設問 ${q.order}</p>
+          <p class="eyebrow">設問 ${q.order}（ここ1か月）</p>
           <h2>${q.text}</h2>
           <div class="likert-grid" id="likertGrid"></div>
         </section>
@@ -295,22 +426,15 @@
         button.className = 'likert-button' + (currentValue === option.value ? ' selected' : '');
         button.innerHTML = `<span class="likert-value">${option.value}</span><span>${option.label}</span>`;
         button.onclick = () => {
-          const nextState = {
+          const nextStep = state.step === questions.length - 1 ? questions.length : state.step + 1;
+          updateState({
             ...state,
+            step: nextStep,
             answers: {
               ...state.answers,
               [q.id]: option.value,
             },
-          };
-          updateState(nextState);
-
-          setTimeout(() => {
-            if (state.step === questions.length - 1) {
-              updateState({ ...state, step: questions.length });
-            } else {
-              updateState({ ...state, step: state.step + 1 });
-            }
-          }, 180);
+          });
         };
         grid.appendChild(button);
       });
@@ -331,7 +455,32 @@
 
     function renderResult() {
       const result = score(state.answers);
-      const aiText = buildAiText(result, state.answers);
+      const aiText = buildAiText(result, state.answers, state.meta);
+      const ageLabelMap = {
+        age_0_2: '0〜2歳',
+        age_3_5: '3〜5歳',
+        age_elementary: '小学生',
+        age_junior_plus: '中学生以上',
+      };
+      const countLabelMap = {
+        one: '1人',
+        two: '2人',
+        three_plus: '3人以上',
+      };
+      const slotLabelMap = {
+        morning: '朝',
+        evening: '夕方',
+        night: '夜',
+        bedtime: '寝かしつけ',
+        outing: '外出時',
+        homework: '宿題や準備',
+        other: 'その他',
+      };
+      const timeSlotText = state.meta.hardTimeSlots.length
+        ? `特に「${state.meta.hardTimeSlots
+            .map((slot) => slotLabelMap[slot] || slot)
+            .join(' / ')}」に負担が集中している可能性があります。`
+        : '';
 
       const barsHtml = Object.keys(result.scales)
         .map(
@@ -344,6 +493,7 @@
           <div class="result-track" aria-hidden="true">
             <div class="result-fill" style="width:${result.scales[scale].normalized}%"></div>
           </div>
+          <p class="small muted">${result.scales[scale].band}</p>
         </div>
       `
         )
@@ -367,22 +517,29 @@
 
         <section class="card">
           <p class="eyebrow">総合表示点</p>
-          <div class="score-line"><strong>${result.totalNormalized}</strong><span>/ 100</span></div>
-        </section>
-
-        <section class="card">
-          <h2>総合メッセージ</h2>
+          <div class="score-line"><strong>${result.totalNormalized}</strong><span>/ 100（生点 ${result.totalRaw}/120）</span></div>
           <p>${result.summaryMessage}</p>
         </section>
 
         <section class="card">
-          <h2>領域別結果</h2>
+          <h2>領域別結果（6軸）</h2>
           ${barsHtml}
         </section>
 
         <section class="card">
-          <h2>高い領域2つの解説</h2>
+          <h2>上位2軸の解説</h2>
           ${topHtml}
+        </section>
+
+        <section class="card">
+          <h2>補助項目のふりかえり</h2>
+          <ul class="simple-list">
+            <li>子どもの年齢帯: ${ageLabelMap[state.meta.childAgeBand] || '未選択'}</li>
+            <li>子どもの人数: ${countLabelMap[state.meta.childCount] || '未選択'}</li>
+            <li>しんどい時間帯: ${state.meta.hardTimeSlots.length ? state.meta.hardTimeSlots.map((slot) => slotLabelMap[slot] || slot).join(' / ') : '未選択'}</li>
+            <li>自由記述: ${state.meta.freeText ? state.meta.freeText : '（記入なし）'}</li>
+          </ul>
+          ${timeSlotText ? `<p class="muted">${timeSlotText}</p>` : ''}
         </section>
 
         <section class="card">
@@ -416,7 +573,7 @@
         try {
           await navigator.clipboard.writeText(aiText);
           alert('AI相談用の文章をコピーしました。');
-        } catch (error) {
+        } catch {
           el('copyArea').focus();
           el('copyArea').select();
           alert('自動コピーに失敗しました。表示中の文章を手動でコピーしてください。');
@@ -426,7 +583,7 @@
       el('printButton').onclick = () => window.print();
       el('restartButton').onclick = () => {
         clearState();
-        state = { started: false, step: 0, answers: {} };
+        state = { started: false, step: 0, answers: {}, meta: { ...defaultMeta } };
         render();
       };
     }
